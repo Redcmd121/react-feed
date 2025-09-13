@@ -1,0 +1,554 @@
+s<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decon</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .post-card, .reel-card {
+      max-width: 600px;
+      margin: 0 auto;
+      border: 1px solid #dbdbdb;
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #fff;
+    }
+    .post-card img, .post-card video, .reel-card video {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+    }
+    .nav-bottom {
+      display: none;
+    }
+    @media (max-width: 640px) {
+      .nav-top {
+        display: none;
+      }
+      .nav-bottom {
+        display: flex;
+      }
+      .content {
+        padding: 10px;
+      }
+      .post-card, .reel-card {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Sample data for posts
+    const initialPosts = [
+      {
+        id: 1,
+        username: "user1",
+        type: "photo",
+        content: "https://via.placeholder.com/600x600",
+        caption: "Beautiful sunset! 🌅",
+        likes: 120,
+        comments: ["Wow!", "Amazing view!"]
+      },
+      {
+        id: 2,
+        username: "user2",
+        type: "video",
+        content: "https://www.w3schools.com/html/mov_bbb.mp4",
+        caption: "Check out my new vlog!",
+        likes: 85,
+        comments: ["Great video!", "Love this!"]
+      }
+    ];
+
+    // Sample data for reels
+    const initialReels = [
+      {
+        id: 1,
+        username: "user1",
+        content: "https://www.w3schools.com/html/mov_bbb.mp4",
+        caption: "Quick reel of my day!",
+        likes: 50,
+        comments: ["Cool!", "Nice edit!"]
+      },
+      {
+        id: 2,
+        username: "user2",
+        content: "https://www.w3schools.com/html/mov_bbb.mp4",
+        caption: "Funny moment!",
+        likes: 30,
+        comments: ["LOL!", "Great one!"]
+      }
+    ];
+
+    // Sample data for global chat messages
+    const initialMessages = [
+      { id: 1, username: "user1", text: "Hey, loving the new posts!", timestamp: "2025-08-25T23:00:00Z" },
+      { id: 2, username: "user2", text: "Thanks! What's everyone up to?", timestamp: "2025-08-25T23:01:00Z" }
+    ];
+
+    // Sample data for private messages
+    const initialPrivateMessages = [
+      { id: 1, sender: "user1", recipient: "current_user", text: "Hey, great photo!", timestamp: "2025-08-25T23:02:00Z" },
+      { id: 2, sender: "current_user", recipient: "user1", text: "Thanks! Loved your video!", timestamp: "2025-08-25T23:03:00Z" }
+    ];
+
+    // Sample list of users for private messaging
+    const users = ["user1", "user2", "user3"];
+
+    // Post component
+    const Post = ({ post }) => {
+      const [likes, setLikes] = useState(post.likes);
+      const [comment, setComment] = useState("");
+      const [comments, setComments] = useState(post.comments);
+
+      const handleLike = () => setLikes(likes + 1);
+      const handleCommentSubmit = (e) => {
+        e.preventDefault();
+        if (comment.trim()) {
+          setComments([...comments, comment]);
+          setComment("");
+        }
+      };
+
+      return (
+        <div className="post-card mb-4">
+          <div className="p-3 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-800">{post.username}</h3>
+          </div>
+          {post.type === "photo" ? (
+            <img src={post.content} alt="Post" className="w-full" />
+          ) : (
+            <video controls className="w-full">
+              <source src={post.content} type="video/mp4" />
+            </video>
+          )}
+          <div className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={handleLike} className="text-red-500 text-2xl">
+                ❤️ {likes}
+              </button>
+              <span className="text-gray-600">{comments.length} comments</span>
+            </div>
+            <p className="text-gray-800 mb-2">{post.caption}</p>
+            <div className="mb-2">
+              {comments.map((c, index) => (
+                <p key={index} className="text-sm text-gray-600">{c}</p>
+              ))}
+            </div>
+            <div>
+              <input
+                type="text"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Add a comment..."
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800 placeholder-gray-500"
+              />
+              <button
+                onClick={handleCommentSubmit}
+                className="bg-blue-500 text-white px-4 py-1 rounded"
+              >
+                Post
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Upload component (for photos)
+    const UploadPost = ({ addPost }) => {
+      const [file, setFile] = useState(null);
+      const [caption, setCaption] = useState("");
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (file) {
+          const newPost = {
+            id: Date.now(),
+            username: "current_user",
+            type: "photo",
+            content: URL.createObjectURL(file),
+            caption,
+            likes: 0,
+            comments: []
+          };
+          addPost(newPost);
+          setFile(null);
+          setCaption("");
+        }
+      };
+
+      return (
+        <div className="post-card mb-4">
+          <div className="p-3">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Upload Photo</h2>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full mb-2 text-gray-800"
+            />
+            <input
+              type="text"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Add a caption..."
+              className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800 placeholder-gray-500"
+            />
+            <button
+              onClick={handleSubmit}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Upload Photo
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // Upload component (for videos and reels)
+    const UploadVideo = ({ addPost, addReel }) => {
+      const [file, setFile] = useState(null);
+      const [caption, setCaption] = useState("");
+      const [isReel, setIsReel] = useState(false);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (file) {
+          const newContent = {
+            id: Date.now(),
+            username: "current_user",
+            content: URL.createObjectURL(file),
+            caption,
+            likes: 0,
+            comments: []
+          };
+          if (isReel) {
+            addReel(newContent);
+          } else {
+            addPost({
+              ...newContent,
+              type: "video"
+            });
+          }
+          setFile(null);
+          setCaption("");
+        }
+      };
+
+      return (
+        <div className="post-card mb-4">
+          <div className="p-3">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Add Video</h2>
+            <select
+              value={isReel ? "reel" : "video"}
+              onChange={(e) => setIsReel(e.target.value === "reel")}
+              className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800"
+            >
+              <option value="video">Regular Video</option>
+              <option value="reel">Reel (Short Video)</option>
+            </select>
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full mb-2 text-gray-800"
+            />
+            <input
+              type="text"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Add a caption..."
+              className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800 placeholder-gray-500"
+            />
+            <button
+              onClick={handleSubmit}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              {isReel ? "Upload Reel" : "Upload Video"}
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // Reels component
+    const Reels = ({ reels, addReel }) => {
+      const [likes, setLikes] = useState({});
+      const [comment, setComment] = useState("");
+      const [comments, setComments] = useState({});
+
+      const handleLike = (id) => {
+        setLikes((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+      };
+
+      const handleCommentSubmit = (id, e) => {
+        e.preventDefault();
+        if (comment.trim()) {
+          setComments((prev) => ({
+            ...prev,
+            [id]: [...(prev[id] || []), comment]
+          }));
+          setComment("");
+        }
+      };
+
+      return (
+        <div className="reel-card mb-4">
+          <div className="p-3 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Reels</h2>
+          </div>
+          <div className="reels-container">
+            {reels.map((reel) => (
+              <div key={reel.id} className="mb-4">
+                <video
+                  controls
+                  className="w-full"
+                  src={reel.content}
+                  onLoadedMetadata={(e) => {
+                    if (e.target.duration > 60) {
+                      alert("Reels must be 60 seconds or less!");
+                      e.target.pause();
+                    }
+                  }}
+                >
+                  <source src={reel.content} type="video/mp4" />
+                </video>
+                <div className="p-3">
+                  <p className="text-gray-800 mb-2">{reel.caption}</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <button
+                      onClick={() => handleLike(reel.id)}
+                      className="text-red-500 text-2xl"
+                    >
+                      ❤️ {likes[reel.id] || reel.likes}
+                    </button>
+                    <span className="text-gray-600">{(comments[reel.id] || []).length} comments</span>
+                  </div>
+                  <div className="mb-2">
+                    {(comments[reel.id] || []).map((c, index) => (
+                      <p key={index} className="text-sm text-gray-600">{c}</p>
+                    ))}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Add a comment..."
+                      className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800 placeholder-gray-500"
+                    />
+                    <button
+                      onClick={(e) => handleCommentSubmit(reel.id, e)}
+                      className="bg-blue-500 text-white px-4 py-1 rounded"
+                    >
+                      Post
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // Private Chat component
+    const PrivateChat = ({ privateMessages, addPrivateMessage }) => {
+      const [message, setMessage] = useState("");
+      const [recipient, setRecipient] = useState(users[0]);
+
+      const handleSendMessage = (e) => {
+        e.preventDefault();
+        if (message.trim()) {
+          const newMessage = {
+            id: Date.now(),
+            sender: "current_user",
+            recipient,
+            text: message,
+            timestamp: new Date().toISOString()
+          };
+          addPrivateMessage(newMessage);
+          setMessage("");
+        }
+      };
+
+      const filteredMessages = privateMessages.filter(
+        (msg) =>
+          (msg.sender === "current_user" && msg.recipient === recipient) ||
+          (msg.recipient === "current_user" && msg.sender === recipient)
+      );
+
+      return (
+        <div className="post-card mb-4">
+          <div className="p-3 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Private Messages</h2>
+          </div>
+          <div className="p-3">
+            <select
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800"
+            >
+              {users.map((user) => (
+                <option key={user} value={user}>
+                  {user}
+                </option>
+              ))}
+            </select>
+            <div className="h-64 overflow-y-auto mb-2 border border-gray-300 rounded bg-white p-2">
+              {filteredMessages.map((msg) => (
+                <div key={msg.id} className="mb-2">
+                  <span className="font-semibold text-gray-800">{msg.sender}: </span>
+                  <span className="text-gray-800">{msg.text}</span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={`Message ${recipient}...`}
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800 placeholder-gray-500"
+              />
+              <button
+                onClick={handleSendMessage}
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Global Chat component
+    const GlobalChat = ({ messages, addMessage }) => {
+      const [message, setMessage] = useState("");
+
+      const handleSendMessage = (e) => {
+        e.preventDefault();
+        if (message.trim()) {
+          const newMessage = {
+            id: Date.now(),
+            username: "current_user",
+            text: message,
+            timestamp: new Date().toISOString()
+          };
+          addMessage(newMessage);
+          setMessage("");
+        }
+      };
+
+      return (
+        <div className="post-card mb-4">
+          <div className="p-3 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Global Chat</h2>
+          </div>
+          <div className="p-3">
+            <div className="h-64 overflow-y-auto mb-2 border border-gray-300 rounded bg-white p-2">
+              {messages.map((msg) => (
+                <div key={msg.id} className="mb-2">
+                  <span className="font-semibold text-gray-800">{msg.username}: </span>
+                  <span className="text-gray-800">{msg.text}</span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-800 placeholder-gray-500"
+              />
+              <button
+                onClick={handleSendMessage}
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Main App component
+    const App = () => {
+      const [posts, setPosts] = useState(initialPosts);
+      const [reels, setReels] = useState(initialReels);
+      const [messages, setMessages] = useState(initialMessages);
+      const [privateMessages, setPrivateMessages] = useState(initialPrivateMessages);
+
+      const addPost = (newPost) => {
+        setPosts([newPost, ...posts]);
+      };
+
+      const addReel = (newReel) => {
+        setReels([newReel, ...reels]);
+      };
+
+      const addMessage = (newMessage) => {
+        setMessages([...messages, newMessage]);
+      };
+
+      const addPrivateMessage = (newMessage) => {
+        setPrivateMessages([...privateMessages, newMessage]);
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-100">
+          <nav className="nav-top fixed top-0 w-full bg-white border-b border-gray-200 p-4 flex justify-between items-center z-10">
+            <h1 className="text-xl font-bold text-gray-800">Decon</h1>
+            <div className="space-x-4">
+              <a href="#" className="text-gray-600 hover:text-gray-800">Profile</a>
+              <a href="#" className="text-gray-600 hover:text-gray-800">Settings</a>
+            </div>
+          </nav>
+          <div className="content pt-16 pb-20">
+            <UploadPost addPost={addPost} />
+            <UploadVideo addPost={addPost} addReel={addReel} />
+            <Reels reels={reels} addReel={addReel} />
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <Post key={post.id} post={post} />
+              ))}
+            </div>
+            <PrivateChat privateMessages={privateMessages} addPrivateMessage={addPrivateMessage} />
+            <GlobalChat messages={messages} addMessage={addMessage} />
+          </div>
+          <nav className="nav-bottom fixed bottom-0 w-full bg-white border-t border-gray-200 p-2 flex justify-around items-center z-10">
+            <a href="#" className="text-gray-600 hover:text-gray-800"><span className="text-2xl">🏠</span><br/>Home</a>
+            <a href="#" className="text-gray-600 hover:text-gray-800"><span className="text-2xl">🔍</span><br/>Search</a>
+            <a href="#" className="text-gray-600 hover:text-gray-800"><span className="text-2xl">🎥</span><br/>Reels</a>
+            <a href="#" className="text-gray-600 hover:text-gray-800"><span className="text-2xl">💬</span><br/>Messages</a>
+            <a href="#" className="text-gray-600 hover:text-gray-800"><span className="text-2xl">🔔</span><br/>Notifications</a>
+            <a href="#" className="text-gray-600 hover:text-gray-800"><span className="text-2xl">➕</span><br/>Create</a>
+          </nav>
+        </div>
+      );
+    };
+
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
